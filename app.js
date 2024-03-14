@@ -10,7 +10,7 @@ const dbConfig = {
 const listenIP = ''
 const listenPort = 8001;
 let wait = 1000;
-// wait = 5000 + Math.floor(Math.random() * 5000)
+wait = 5000 + Math.floor(Math.random() * 5000)
 
 const db = mysql.createConnection(dbConfig);
 
@@ -60,8 +60,11 @@ const server = http.createServer((req, res) => {
         if (!ipsData[0]) {
             console.log('No record found for', ip)
             return query('INSERT INTO ips (ip) VALUES (?);',[ip])
-        } else { console.log('Record found for', ip, `with ${ipsData[0].fetches_left} fetches remaining. Banned: ${ipsData[0].banned}. Name: ${ipsData[0].name}`)}
+        } else { console.log(`Record found for ${ip} found with ${ipsData[0].fetches_left} fetches remaining. Banned: ${ipsData[0].banned}. Name: ${ipsData[0].name}. Tried ${ipsData[0].times_tried} times.`)}
     }).then( () => {
+        if (req.url.slice(1) !== 'favicon.ico') {
+            query('UPDATE `sbox-keygen`.ips SET times_tried = ? WHERE ip = ?;', [ipsData[0].times_tried + 1, ip]);
+        };
         if (req.url.slice(1) !== '' && req.url.slice(1) !== 'favicon.ico') {
             query('UPDATE `sbox-keygen`.ips SET name = ? WHERE ip = ?;', [req.url.slice(1), ip])
         };
