@@ -84,7 +84,8 @@ const server = http.createServer((req, res) => {
             delayedResEnd(tryKeyGen(), res);
         } else {
             let usedKey = usedKeysData[ Math.floor(Math.random() * usedKeysData.length)];
-            delayedResEnd(usedKey.key, res)
+            query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [usedKey.times_fetched + 1, usedKey.id]);
+            delayedResEnd(usedKey.key, res);
         }
     }).catch(err => console.log(err));
 });
