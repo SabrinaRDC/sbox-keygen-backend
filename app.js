@@ -8,6 +8,7 @@ const dbConfig = {
     password: '',
     database: 'sbox-keygen'
 };
+const listenIP = '127.0.0.1'
 const listenPort = 8001;
 let wait = 1000;
 // wait = 5000 + Math.floor(Math.random() * 5000)
@@ -43,7 +44,7 @@ const server = http.createServer((req, res) => {
     console.log(req.socket.remoteAddress, req.method, req.url);
     res.setHeader('Content-Type', 'Text');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    // res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     let ipsData;
     let keysData;
     let content = '';
@@ -75,4 +76,4 @@ const server = http.createServer((req, res) => {
     }).catch(err => console.log(err));
 });
 
-server.listen(listenPort, '127.0.0.1', () => {console.log('listening on port', listenPort)})
+server.listen(listenPort, listenIP, () => {console.log(`Listening on ${listenIP}:${listenPort}`)})
