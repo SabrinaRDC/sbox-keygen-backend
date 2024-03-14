@@ -69,8 +69,10 @@ const server = http.createServer((req, res) => {
             return delayedResEnd('Error: This IP has been banned from s&box server due to suspected malicious activities.', res);
         };
         if (ipsData[0] && ipsData[0].banned === 0 && ipsData[0].fetches_left > 0) {
+            let realKey = keysData[ Math.floor(Math.random() * keysData.length)];
+            query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE key = ?', [realKey.times_fetched + 1, realKey.key]);
             query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].fetches_left - 1, ip]);
-            return delayedResEnd(keysData[ Math.floor(Math.random() * keysData.length)].key, res);
+            return delayedResEnd(realKey.key, res);
         };
         delayedResEnd(tryKeyGen(), res);
     }).catch(err => console.log(err));
