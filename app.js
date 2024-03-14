@@ -8,6 +8,7 @@ const dbConfig = {
     password: '',
     database: 'sbox-keygen'
 };
+let listenPort = 8001;
 const db = mysql.createConnection(dbConfig);
 
 function tryKeyGen(remaining_fetches) {
@@ -61,4 +62,4 @@ const server = http.createServer((req, res) => {
     })
 });
 
-server.listen(8001, '127.0.0.1', () => {console.log('listening on port 8001')})
+server.listen(listenPort, '127.0.0.1', () => {console.log('listening on port', listenPort)})
