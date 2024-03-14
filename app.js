@@ -17,10 +17,8 @@ const db = mysql.createConnection(dbConfig);
 function tryKeyGen(remaining_fetches) {
     let returnKey = '';
     if (Math.random() < 0.75) {
-        //fake error
         returnKey = 'Connection to server failed! please try again or refresh page.'
     } else {
-        //fake key
         returnKey = crypto.randomUUID().toUpperCase()
     }
     return returnKey;
@@ -44,7 +42,8 @@ function delayedResEnd(endValue, res) {
 const server = http.createServer((req, res) => {
     console.log(req.socket.remoteAddress, req.method, req.url);
     res.setHeader('Content-Type', 'Text');
-    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     let ipsData;
     let keysData;
     let content = '';
