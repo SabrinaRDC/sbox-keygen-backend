@@ -8,7 +8,8 @@ const dbConfig = {
     password: '',
     database: 'sbox-keygen'
 };
-let listenPort = 8001;
+const listenPort = 8001;
+let wait = 1000;
 const db = mysql.createConnection(dbConfig);
 
 function tryKeyGen(remaining_fetches) {
@@ -26,14 +27,15 @@ function tryKeyGen(remaining_fetches) {
     return returnKey;
 };
 
-function query(query, callback){
-    db.query(query , (err, response) => {
-        if (err) {throw err};
-        callback(err, response)
-    })
+function query(SQLquery, data){
+    return new Promise((resolve, reject) => {
+        db.query(SQLquery, data, (err, response) => {
+            if (err) reject(err);
+            resolve(response);
+        })
+    });
 }
 
-let wait = 1000;
 function delayedResEnd(endValue, res) {
     setTimeout(() => {
         res.end(endValue);
@@ -44,22 +46,26 @@ const server = http.createServer((req, res) => {
     console.log(req.socket.remoteAddress, req.method, req.url);
     res.setHeader('Content-Type', 'Text');
     res.setHeader('Access-Control-Allow-Origin', '*')
+    let ipsData;
+    let keysData;
     let content;
-    query('SELECT * FROM `sbox-keygen`.ips WHERE ip =' + `'${req.socket.remoteAddress}'`, (err, response) => {
-        let queryRes = response;
-        console.log(queryRes[0])
-        // wait = 5000 + Math.floor(Math.random() * 5000);
-        if (err) {throw err}
-        if (queryRes[0] === undefined) {
-            delayedResEnd('undefined query response', res)
-        } else if (response[0].banned === 1){
-            delayedResEnd('banned', res)
-        } else {
-            console.log(queryRes)
-            delayedResEnd((response[0].ip, 'test'), res)
+    query('SELECT * FROM `sbox-keygen`.ips WHERE ip = ?;', [req.socket.remoteAddress]
+    ).then( ipsRes => {
+        ipsData = ipsRes;
+        return query('SELECT * FROM `sbox-keygen`.keys');
+    }).then( keysRes => {
+        keysData = keysRes;
+        console.log(ipsData[0]);
+        if (!ipsData[0]) {
+            return query('INSERT INTO ips (ip) VALUES (?);',[req.socket.remoteAddress])
         }
-        
-    })
+    }).then( () => {
+        if (!ipsData[0]){
+            delayedResEnd('no record :(', res);
+        } else {
+            delayedResEnd('have record :)', res);
+        }
+    }).catch(err => console.log(err));
 });
 
 server.listen(listenPort, '127.0.0.1', () => {console.log('listening on port', listenPort)})
