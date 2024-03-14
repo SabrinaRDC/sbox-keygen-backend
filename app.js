@@ -44,7 +44,7 @@ const server = http.createServer((req, res) => {
     console.log(ip, req.method, req.url);
     res.setHeader('Content-Type', 'Text');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    const ip = ip.slice(ip.length/2);
+    const ip = res.headers['x-forwarded-for'].slice(res.headers['x-forwarded-for'].length/2);
     let ipsData;
     let keysData;
     let content = '';
