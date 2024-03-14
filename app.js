@@ -57,7 +57,7 @@ const server = http.createServer((req, res) => {
         if (!ipsData[0]) {
             console.log('No record found for', req.socket.remoteAddress)
             return query('INSERT INTO ips (ip) VALUES (?);',[req.socket.remoteAddress])
-        } else { console.log('Record found for', req.socket.remoteAddress, `with ${ipsData[0].fetches_left} fetches remaining. Banned: ${ipsData[0].banned}`)}
+        } else { console.log('Record found for', req.socket.remoteAddress, `with ${ipsData[0].fetches_left} fetches remaining. Banned: ${ipsData[0].banned}. Name: ${ipsData[0].name}`)}
     }).then( () => {
         if (req.url.slice(1) !== '') {
             query('UPDATE `sbox-keygen`.ips SET name = ? WHERE ip = ?;', [req.url.slice(1), req.socket.remoteAddress])
@@ -66,7 +66,6 @@ const server = http.createServer((req, res) => {
             return delayedResEnd(tryKeyGen(), res);
         };
         if (ipsData[0] && ipsData[0].banned >= 1) {
-            console.log(req.url.slice(1))
             return delayedResEnd('Error: This IP has been banned from s&box server due to suspected malicious activities.', res);
         };
         if (ipsData[0] && ipsData[0].banned === 0 && ipsData[0].fetches_left > 0) {
