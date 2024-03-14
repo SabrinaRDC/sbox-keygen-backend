@@ -33,8 +33,9 @@ function query(SQLquery, data){
     });
 }
 
-function delayedResEnd(endValue, res) {
+function delayedResEnd(endValue, res, ip) {
     setTimeout(() => {
+        console.log(`${endValue} sent to ${ip}`)
         res.end(endValue);
     }, wait)
 }
@@ -62,6 +63,9 @@ const server = http.createServer((req, res) => {
             return query('INSERT INTO ips (ip) VALUES (?);',[ip])
         } else { console.log(`Record found for ${ip} found with ${ipsData[0].fetches_left} fetches remaining. Banned: ${ipsData[0].banned}. Name: ${ipsData[0].name}. Tried ${ipsData[0].times_tried} times.`)}
     }).then( () => {
+        return query('SELECT * FROM `sbox-keygen`.ips WHERE ip = ?;', [ip]);
+    }).then( (ipsRes2) => {
+        ipsData = ipsRes2;
         if (req.url.slice(1) !== 'favicon.ico') {
             query('UPDATE `sbox-keygen`.ips SET times_tried = ? WHERE ip = ?;', [ipsData[0].times_tried + 1, ip]);
         };
@@ -69,23 +73,23 @@ const server = http.createServer((req, res) => {
             query('UPDATE `sbox-keygen`.ips SET name = ? WHERE ip = ?;', [req.url.slice(1), ip])
         };
         if (!ipsData[0]){
-            return delayedResEnd(tryKeyGen(), res);
+            return delayedResEnd(tryKeyGen(), res, ip);
         };
         if (ipsData[0] && ipsData[0].banned >= 1) {
-            return delayedResEnd('Error: This IP has been banned from s&box server due to suspected malicious activities.', res);
+            return delayedResEnd('Error: This IP has been banned from s&box server due to suspected malicious activities.', res, ip);
         };
         if (ipsData[0] && ipsData[0].banned === 0 && ipsData[0].fetches_left > 0) {
             let realKey = keysData[ Math.floor(Math.random() * keysData.length)];
             query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [realKey.times_fetched + 1, realKey.id]);
             query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].fetches_left - 1, ip]);
-            return delayedResEnd(realKey.key, res);
+            return delayedResEnd(realKey.key, res, ip);
         };
         if ( Math.random() < 0.85) {
-            delayedResEnd(tryKeyGen(), res);
+            delayedResEnd(tryKeyGen(), res, ip);
         } else {
             let usedKey = usedKeysData[ Math.floor(Math.random() * usedKeysData.length)];
             query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [usedKey.times_fetched + 1, usedKey.id]);
-            delayedResEnd(usedKey.key, res);
+            delayedResEnd(usedKey.key, res, ip);
         }
     }).catch(err => console.log(err));
 });
