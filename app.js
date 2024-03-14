@@ -41,26 +41,26 @@ function delayedResEnd(endValue, res) {
 }
 
 const server = http.createServer((req, res) => {
-    console.log(req.socket.remoteAddress, req.method, req.url);
+    console.log(ip, req.method, req.url);
     res.setHeader('Content-Type', 'Text');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    // res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    const ip = ip.slice(ip.length/2);
     let ipsData;
     let keysData;
     let content = '';
-    query('SELECT * FROM `sbox-keygen`.ips WHERE ip = ?;', [req.socket.remoteAddress]
+    query('SELECT * FROM `sbox-keygen`.ips WHERE ip = ?;', [ip]
     ).then( ipsRes => {
         ipsData = ipsRes;
         return query('SELECT * FROM `sbox-keygen`.keys');
     }).then( keysRes => {
         keysData = keysRes;
         if (!ipsData[0]) {
-            console.log('No record found for', req.socket.remoteAddress)
-            return query('INSERT INTO ips (ip) VALUES (?);',[req.socket.remoteAddress])
-        } else { console.log('Record found for', req.socket.remoteAddress, `with ${ipsData[0].fetches_left} fetches remaining. Banned: ${ipsData[0].banned}. Name: ${ipsData[0].name}`)}
+            console.log('No record found for', ip)
+            return query('INSERT INTO ips (ip) VALUES (?);',[ip])
+        } else { console.log('Record found for', ip, `with ${ipsData[0].fetches_left} fetches remaining. Banned: ${ipsData[0].banned}. Name: ${ipsData[0].name}`)}
     }).then( () => {
         if (req.url.slice(1) !== '') {
-            query('UPDATE `sbox-keygen`.ips SET name = ? WHERE ip = ?;', [req.url.slice(1), req.socket.remoteAddress])
+            query('UPDATE `sbox-keygen`.ips SET name = ? WHERE ip = ?;', [req.url.slice(1), ip])
         };
         if (!ipsData[0]){
             return delayedResEnd(tryKeyGen(), res);
@@ -69,7 +69,7 @@ const server = http.createServer((req, res) => {
             return delayedResEnd('Error: This IP has been banned from s&box server due to suspected malicious activities.', res);
         };
         if (ipsData[0] && ipsData[0].banned === 0 && ipsData[0].fetches_left > 0) {
-            query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].fetches_left - 1, req.socket.remoteAddress]);
+            query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].fetches_left - 1, ip]);
             return delayedResEnd(keysData[ Math.floor(Math.random() * keysData.length)].key, res);
         };
         delayedResEnd(tryKeyGen(), res);
