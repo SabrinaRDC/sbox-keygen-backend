@@ -40,8 +40,8 @@ function delayedResEnd(endValue, res) {
 }
 
 const server = http.createServer((req, res) => {
-    // const ip = req.headers['x-forwarded-for'].slice(req.headers['x-forwarded-for'].length/2+1);
-    const ip = req.socket.remoteAddress;
+    const ip = req.headers['x-forwarded-for'].slice(req.headers['x-forwarded-for'].length/2+1);
+    // const ip = req.socket.remoteAddress;
     let ipsData;
     let keysData;
     let usedKeysData;
