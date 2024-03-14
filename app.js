@@ -5,7 +5,7 @@ const dbConfig = {
     host: '10.175.1.3',
     port: 3306,
     user: 'sbox-keygen',
-    password: '*uFaW^3NHg2XHD#r7JdcKGGmLqixXp#y',
+    password: '',
     database: 'sbox-keygen'
 };
 const listenPort = 8001;
