@@ -8,7 +8,7 @@ const dbConfig = {
     password: '',
     database: 'sbox-keygen'
 };
-const listenIP = '127.0.0.1'
+const listenIP = ''
 const listenPort = 8001;
 let wait = 1000;
 // wait = 5000 + Math.floor(Math.random() * 5000)
@@ -41,7 +41,7 @@ function delayedResEnd(endValue, res) {
 }
 
 const server = http.createServer((req, res) => {
-    const ip = res.headers['x-forwarded-for'].slice(res.headers['x-forwarded-for'].length/2);
+    const ip = req.headers['x-forwarded-for'].slice(req.headers['x-forwarded-for'].length/2+1);
     let ipsData;
     let keysData;
     let content = '';
