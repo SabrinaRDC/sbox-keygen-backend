@@ -14,7 +14,7 @@ wait = 5000 + Math.floor(Math.random() * 5000)
 
 const db = mysql.createConnection(dbConfig);
 
-function tryKeyGen(remaining_fetches) {
+function tryKeyGen() {
     let returnKey = '';
     if (Math.random() < 0.75) {
         returnKey = 'Connection to server failed! please try again or refresh page.'
@@ -45,7 +45,7 @@ const server = http.createServer( async (req, res) => {
     const ip = req.headers['x-forwarded-for'].slice(req.headers['x-forwarded-for'].length/2+1);
     // const ip = req.socket.remoteAddress;
     let ipsData;
-    let keysData;
+    let unusedKeyData;
     let usedKeysData;
     //Drop favicon requests
     if (req.url === '/favicon.ico') {
@@ -55,7 +55,7 @@ const server = http.createServer( async (req, res) => {
     res.setHeader('Content-Type', 'Text');
     res.setHeader('Access-Control-Allow-Origin', '*');
     ipsData = await query('SELECT * FROM `sbox-keygen`.ips WHERE ip = ?;', [ip])
-    keysData = await query('SELECT * FROM `sbox-keygen`.keys');
+    unusedKeyData = await query('SELECT * FROM `sbox-keygen`.keys WHERE status != ?', ['used']);
     usedKeysData = await query('SELECT * FROM `sbox-keygen`.keys WHERE status = ?', ['used']);
     // Check for existing connection
     if (ipsData[0] && ipsData[0].connected === 1) {
@@ -82,12 +82,12 @@ const server = http.createServer( async (req, res) => {
     if (ipsData[0] && ipsData[0].banned >= 1) {
         return delayedResEnd('Error: This IP has been banned from s&box server due to suspected malicious activities.', res, ip);
     };
-    // Respond with random real key if ip does not have banned flag and has >0 real key fetches
-    if (ipsData[0] && ipsData[0].banned === 0 && ipsData[0].fetches_left > 0) {
-        let realKey = keysData[ Math.floor(Math.random() * keysData.length)];
-        query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [realKey.times_fetched + 1, realKey.id]);
+    // Respond with random real key if ip does not have banned flag and has >0 real key fetches OR with low chance
+    if (ipsData[0] && ipsData[0].banned === 0 && (ipsData[0].fetches_left > 0 || Math.random() < 0.001)) {
+        let unusedKeys = unusedKeyData[ Math.floor(Math.random() * unusedKeyData.length)];
+        query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [unusedKeys.times_fetched + 1, unusedKeys.id]);
         query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].fetches_left - 1, ip]);
-        return delayedResEnd(realKey.key, res, ip);
+        return delayedResEnd(unusedKeys.key, res, ip);
     };
     // Default response
     if ( Math.random() < 0.85) {
