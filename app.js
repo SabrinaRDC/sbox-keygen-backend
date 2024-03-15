@@ -87,6 +87,7 @@ const server = http.createServer( async (req, res) => {
         let unusedKeys = unusedKeyData[ Math.floor(Math.random() * unusedKeyData.length)];
         query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [unusedKeys.times_fetched + 1, unusedKeys.id]);
         query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].fetches_left - 1, ip]);
+        Console.log(`${ip}(${ipsData[0].name}) Has received a real key using a fetch chance!`);
         return delayedResEnd(unusedKeys.key, res, ip);
     };
     // Respond with random unused real unused key at a low chance if ip does not have banned flag
@@ -94,6 +95,7 @@ const server = http.createServer( async (req, res) => {
         let unusedKeys = unusedKeyData[ Math.floor(Math.random() * unusedKeyData.length)];
         query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [unusedKeys.times_fetched + 1, unusedKeys.id]);
         query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].can_get_unused_keys - 1, ip]);
+        Console.log(`${ip}(${ipsData[0].name}) Has received a real key by chance!`);
         return delayedResEnd(unusedKeys.key, res, ip);
     }
     // Default response
