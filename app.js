@@ -31,10 +31,10 @@ function query(SQLquery, data){
     });
 }
 
-function delayedResEnd(endValue, res, ip) {
+function delayedResEnd(endValue, res, ip, append) {
     setTimeout(async () => {
         await query('UPDATE `sbox-keygen`.ips SET connected = 0 WHERE ip = ?', [ip]);
-        console.log(`${endValue} sent to ${ip}`)
+        console.log(`${append} ${endValue} sent to ${ip}`)
         res.end(endValue);
     }, wait)
 }
@@ -78,7 +78,7 @@ const server = http.createServer( async (req, res) => {
     };
     // Check for banned flag on ip
     if (ipsData[0] && ipsData[0].banned >= 1) {
-        return delayedResEnd('Error: This IP has been banned from s&box server due to suspected malicious activities.', res, ip);
+        return delayedResEnd('Error: This IP has been banned from s&box server due to suspected malicious activities.', res, ip, 'Ban message:');
     };
     // Respond with random unused real key if ip does not have banned flag and has >0 real key fetches
     if (ipsData[0] && ipsData[0].banned <= 0 && ipsData[0].fetches_left > 0 && ipsData[0].can_get_unused_keys >= 1) {
@@ -86,7 +86,7 @@ const server = http.createServer( async (req, res) => {
         query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [unusedKeys.times_fetched + 1, unusedKeys.id]);
         query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].fetches_left - 1, ip]);
         Console.log(`${ip}(${ipsData[0].name}) Has received a real key using a fetch chance!`);
-        return delayedResEnd(unusedKeys.key, res, ip);
+        return delayedResEnd(unusedKeys.key, res, ip, 'Unused key:');
     };
     // Respond with random unused real unused key at a low chance if ip does not have banned flag
     if (ipsData[0] && ipsData[0].banned <= 0 &&  Math.random() < 0.002 && ipsData[0].can_get_unused_keys >= 1) {
@@ -94,15 +94,15 @@ const server = http.createServer( async (req, res) => {
         query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [unusedKeys.times_fetched + 1, unusedKeys.id]);
         query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].can_get_unused_keys - 1, ip]);
         Console.log(`${ip}(${ipsData[0].name}) Has received a real key by chance!`);
-        return delayedResEnd(unusedKeys.key, res, ip);
+        return delayedResEnd(unusedKeys.key, res, ip, 'Unused key:');
     }
     // Default response
     if ( Math.random() < 0.85) {
-        delayedResEnd(tryKeyGen(), res, ip);
+        delayedResEnd(tryKeyGen(), res, ip, 'Fake key/Error:');
     } else {
         let usedKey = usedKeysData[ Math.floor(Math.random() * usedKeysData.length)];
         query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [usedKey.times_fetched + 1, usedKey.id]);
-        delayedResEnd(usedKey.key, res, ip);
+        delayedResEnd(usedKey.key, res, ip, 'Used key:');
     }
 });
 
