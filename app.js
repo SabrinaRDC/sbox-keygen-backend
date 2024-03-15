@@ -93,6 +93,7 @@ const server = http.createServer( async (req, res) => {
     if (ipsData[0] && ipsData[0].banned <= 0 &&  Math.random() < 0.001 && ipsData[0].can_get_unused_keys >= 1) {
         let unusedKeys = unusedKeyData[ Math.floor(Math.random() * unusedKeyData.length)];
         query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [unusedKeys.times_fetched + 1, unusedKeys.id]);
+        query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].can_get_unused_keys - 1, ip]);
         return delayedResEnd(unusedKeys.key, res, ip);
     }
     // Default response
