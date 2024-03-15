@@ -9,8 +9,8 @@ const dbConfig = {
 };
 const listenIP = ''
 const listenPort = 8001;
-let wait = 1000;
-wait = 5000 + Math.floor(Math.random() * 5000)
+// let wait = 1000;
+let wait = 5000 + Math.floor(Math.random() * 5000)
 
 const db = mysql.createConnection(dbConfig);
 
