@@ -9,19 +9,17 @@ const dbConfig = {
 };
 const listenIP = ''
 const listenPort = 8001;
-// let wait = 1000;
-let wait = 5000 + Math.floor(Math.random() * 5000)
+// const wait = 1000;
+const wait = 5000 + Math.floor(Math.random() * 5000)
 
 const db = mysql.createConnection(dbConfig);
 
 function tryKeyGen() {
-    let returnKey = '';
     if (Math.random() < 0.75) {
-        returnKey = 'Connection to server failed! please try again or refresh page.'
+        return 'Connection to server failed! please try again or refresh page.'
     } else {
-        returnKey = crypto.randomUUID().toUpperCase()
+        return crypto.randomUUID().toUpperCase()
     }
-    return returnKey;
 };
 
 function query(SQLquery, data){
