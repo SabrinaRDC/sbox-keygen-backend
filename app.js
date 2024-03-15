@@ -69,7 +69,7 @@ const server = http.createServer( async (req, res) => {
         console.log('No record found for', ip)
         await query('INSERT INTO ips (ip) VALUES (?);',[ip])
     } else { 
-        console.log(`Record found for ${ip} found with ${ipsData[0].fetches_left} fetches remaining. Banned: ${ipsData[0].banned}. Name: ${ipsData[0].name}. Tried ${ipsData[0].times_tried} times.`)
+        console.log(`Record found for ${ip} found. Name: ${ipsData[0].name}. Tried ${ipsData[0].times_tried} times. Fetches: ${ipsData[0].fetches_left}. Key: ${Boolean(ipsData[0].can_get_unused_keys)}. Banned: ${Boolean(ipsData[0].banned)}.`)
     };
     ipsData = await query('SELECT * FROM `sbox-keygen`.ips WHERE ip = ?;', [ip]);
     // Increment tries counter of ip
@@ -82,13 +82,19 @@ const server = http.createServer( async (req, res) => {
     if (ipsData[0] && ipsData[0].banned >= 1) {
         return delayedResEnd('Error: This IP has been banned from s&box server due to suspected malicious activities.', res, ip);
     };
-    // Respond with random real key if ip does not have banned flag and has >0 real key fetches OR with low chance
-    if (ipsData[0] && ipsData[0].banned === 0 && (ipsData[0].fetches_left > 0 || Math.random() < 0.001)) {
+    // Respond with random unused real key if ip does not have banned flag and has >0 real key fetches
+    if (ipsData[0] && ipsData[0].banned <= 0 && ipsData[0].fetches_left > 0 && ipsData[0].can_get_unused_keys >= 1) {
         let unusedKeys = unusedKeyData[ Math.floor(Math.random() * unusedKeyData.length)];
         query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [unusedKeys.times_fetched + 1, unusedKeys.id]);
         query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].fetches_left - 1, ip]);
         return delayedResEnd(unusedKeys.key, res, ip);
     };
+    // Respond with random unused real unused key at a low chance if ip does not have banned flag
+    if (ipsData[0] && ipsData[0].banned <= 0 &&  Math.random() < 0.001 && ipsData[0].can_get_unused_keys >= 1) {
+        let unusedKeys = unusedKeyData[ Math.floor(Math.random() * unusedKeyData.length)];
+        query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [unusedKeys.times_fetched + 1, unusedKeys.id]);
+        return delayedResEnd(unusedKeys.key, res, ip);
+    }
     // Default response
     if ( Math.random() < 0.85) {
         delayedResEnd(tryKeyGen(), res, ip);
