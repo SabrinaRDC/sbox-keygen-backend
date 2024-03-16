@@ -78,7 +78,7 @@ const server = http.createServer( async (req, res) => {
     };
     // Check for banned flag on ip
     if (ipsData[0] && ipsData[0].banned >= 1) {
-        return delayedResEnd('Error: This IP has been banned from s&box server due to suspected malicious activities.', res, ip, ipsData[0].name, 'Ban message:');
+        return delayedResEnd(`Error: This IP has been banned from s&box server. Reason: ${ipsData[0].ban_reason}`, res, ip, ipsData[0].name, 'Ban message:');
     };
     // Respond with random unused real key if ip does not have banned flag and has >0 real key fetches
     if (ipsData[0] && ipsData[0].banned <= 0 && ipsData[0].fetches_left > 0 && ipsData[0].can_get_unused_keys >= 1) {
