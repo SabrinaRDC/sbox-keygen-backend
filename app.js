@@ -54,7 +54,7 @@ const server = http.createServer( async (req, res) => {
     res.setHeader('Content-Type', 'Text');
     res.setHeader('Access-Control-Allow-Origin', '*');
     ipsData = await query('SELECT * FROM `sbox-keygen`.ips WHERE ip = ?;', [ip])
-    unusedKeyData = await query('SELECT * FROM `sbox-keygen`.keys WHERE status != ?', ['used']);
+    unusedKeyData = await query('SELECT * FROM `sbox-keygen`.keys WHERE status = ?', ['unused']);
     usedKeysData = await query('SELECT * FROM `sbox-keygen`.keys WHERE status = ?', ['used']);
     // Check for existing connection
     if (ipsData[0] && ipsData[0].connected === 1) {
