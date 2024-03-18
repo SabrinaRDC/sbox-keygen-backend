@@ -101,7 +101,7 @@ const server = http.createServer( async (req, res) => {
         return delayedResEnd(res, ip, unusedKey.key, () => { console.log(chalk.white.bgGreen(`Unused key(Random): ${unusedKey.key} sent to ${ip}(${ipsData[0].name}).`))});
     }
     // Default response
-    if ( Math.random() < 0.85) {
+    if ( Math.random() < 0.8) {
         const random = tryKeyGen();
         delayedResEnd(res, ip, random, () => { console.log(chalk.yellow(`Fake key/Error: ${random} sent to ${ip}(${ipsData[0].name}).`))});
     } else {
