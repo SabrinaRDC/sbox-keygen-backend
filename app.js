@@ -68,9 +68,25 @@ const server = http.createServer( async (req, res) => {
         console.log('No record found for', ip)
         await query('INSERT INTO ips (ip) VALUES (?);',[ip])
     } else { 
-        console.log(`Record found for ${ip} found. Name: ${ipsData[0].name}. Tried ${ipsData[0].times_tried} times. Fetches: ${ipsData[0].fetches_left}. Key: ${Boolean(ipsData[0].can_get_unused_keys)}. Banned: ${Boolean(ipsData[0].banned)}.`)
+        console.log(`Record found for ${ip} found. Name: ${ipsData[0].name}. Tried ${ipsData[0].times_tried} times. Fetches: ${ipsData[0].fetches_left}. Key: ${Boolean(ipsData[0].can_get_unused_keys)}. Banned: ${Boolean(ipsData[0].banned)}. Bigoted: ${Boolean(ipsData[0].bigoted)}.`)
     };
     ipsData = await query('SELECT * FROM `sbox-keygen`.ips WHERE ip = ?;', [ip]);
+    // Check for bigoted flag
+    if (Boolean(ipsData[0].bigoted) === true) {
+        console.log(chalk.red(`Bigot found! ${ip}(${ipsData[0].name})`));
+        if (Boolean(ipsData[0].can_get_unused_keys) === true) {
+            await query('UPDATE `sbox-keygen`.ips SET can_get_unused_keys = false WHERE ip = ?;', [ip]);
+            console.log(`No keys for bigots! Updated can_get_unused_keys for ${ip}(${ipsData[0].name})`);
+        };
+        if ( Math.random() < 0.8) {
+            const random = tryKeyGen();
+            delayedResEnd(res, ip, random, () => { console.log(chalk.yellow(`Fake key/Error: ${random} sent to ${ip}(${ipsData[0].name}).`))});
+        } else {
+            let usedKey = usedKeysData[ Math.floor(Math.random() * usedKeysData.length)];
+            query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [usedKey.times_fetched + 1, usedKey.id]);
+            delayedResEnd(res, ip, usedKey.key, () => { console.log(chalk.cyan(`Used key: ${usedKey.key} sent to ${ip}(${ipsData[0].name}).`))});
+        }
+    };
     // Increment tries counter of ip
     query('UPDATE `sbox-keygen`.ips SET times_tried = ? WHERE ip = ?;', [ipsData[0].times_tried + 1, ip]);
     // Set name to input if not blank
@@ -99,7 +115,7 @@ const server = http.createServer( async (req, res) => {
         query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].can_get_unused_keys - 1, ip]);
         console.log(chalk.white.bgGreen(`${ip}(${ipsData[0].name}) Has received a real key by chance!`));
         return delayedResEnd(res, ip, unusedKey.key, () => { console.log(chalk.white.bgGreen(`Unused key(Random): ${unusedKey.key} sent to ${ip}(${ipsData[0].name}).`))});
-    }
+    };
     // Default response
     if ( Math.random() < 0.8) {
         const random = tryKeyGen();
