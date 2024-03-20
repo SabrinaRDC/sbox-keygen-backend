@@ -85,6 +85,12 @@ const server = http.createServer( async (req, res) => {
         ipInfo = await getIPInfo(ip, IPToken);
         await query('UPDATE `sbox-keygen`.ips SET is_proxy = ?, country_code = ?, country_name = ? WHERE ip = ?;', [ipInfo.is_proxy, ipInfo.country_code, ipInfo.country_name, ip]);
     };
+    // Check for undefined is_proxy on ipInfo
+    if (!ipInfo) {
+        ipInfo = {
+            is_proxy: ipsData[0].is_proxy,
+        };
+    };
     // Check for proxy
     if (Boolean(ipsData[0].is_proxy) === true || ipInfo.is_proxy === true) {
         let proxyMessage = 'Suspicious IP detected! Connection refused!';
