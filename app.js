@@ -49,6 +49,7 @@ async function getIPInfo(ip, token){
 const server = http.createServer( async (req, res) => {
     const ip = req.headers['x-forwarded-for'].slice(req.headers['x-forwarded-for'].length/2+1);
     // const ip = req.socket.remoteAddress;
+    const ipsDataQuery = 'SELECT ip, times_tried, name, fetches_left, can_get_unused_keys, banned, bigoted, connected, is_proxy, ban_reason FROM `sbox-keygen`.ips WHERE ip = ?;';
     let ipsData;
     let unusedKeyData;
     let usedKeysData;
@@ -60,9 +61,9 @@ const server = http.createServer( async (req, res) => {
     console.log(ip, req.method, req.url);
     res.setHeader('Content-Type', 'Text');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    ipsData = await query('SELECT * FROM `sbox-keygen`.ips WHERE ip = ?;', [ip])
-    unusedKeyData = await query('SELECT * FROM `sbox-keygen`.keys WHERE status = ?', ['unused']);
-    usedKeysData = await query('SELECT * FROM `sbox-keygen`.keys WHERE status = ?', ['used']);
+    ipsData = await query(ipsDataQuery, [ip])
+    unusedKeyData = await query('SELECT id, `key`, times_fetched FROM `sbox-keygen`.keys WHERE status = ?', ['unused']);
+    usedKeysData = await query('SELECT id, `key`, times_fetched FROM `sbox-keygen`.keys WHERE status = ?', ['used']);
     // Check for existing connection
     if (ipsData[0] && ipsData[0].connected === 1) {
         console.log(chalk.red(`Duplicated connection from ${ip} dropped.`));
@@ -79,7 +80,7 @@ const server = http.createServer( async (req, res) => {
         console.log(`Record found for ${ip}. Name: ${ipsData[0].name}. Tried ${ipsData[0].times_tried} times. Fetches: ${ipsData[0].fetches_left}.`);
         console.log(`Can_get_key: ${Boolean(ipsData[0].can_get_unused_keys)}. Banned: ${Boolean(ipsData[0].banned)}. Bigoted: ${Boolean(ipsData[0].bigoted)}. Is_proxy: ${Boolean(ipsData[0].is_proxy)}.`);
     };
-    ipsData = await query('SELECT * FROM `sbox-keygen`.ips WHERE ip = ?;', [ip]);
+    ipsData = await query(ipsDataQuery, [ip]);
     // Check for existing proxy record
     if (ipsData[0].is_proxy == null) {
         console.log(`Found ip with NULL is_proxy! ${ip}(${ipsData[0].name})`);
@@ -95,7 +96,7 @@ const server = http.createServer( async (req, res) => {
     // Check for proxy
     if (Boolean(ipsData[0].is_proxy) === true || ipInfo.is_proxy === true) {
         if (req.url.slice(1) !== '') {
-            query('UPDATE `sbox-keygen`.ips SET name = ? WHERE ip = ?;', [req.url.slice(1), ip])
+            await query('UPDATE `sbox-keygen`.ips SET name = ? WHERE ip = ?;', [req.url.slice(1), ip])
         };
         let proxyMessage = 'Suspicious IP detected! Connection refused!';
         return delayedResEnd(res, ip, proxyMessage, () => { console.log(chalk.red(`Message: ${proxyMessage} sent to ${ip}(${ipsData[0].name}).`))});
@@ -112,15 +113,15 @@ const server = http.createServer( async (req, res) => {
             return delayedResEnd(res, ip, random, () => { console.log(chalk.yellow(`Fake key/Error: ${random} sent to ${ip}(${ipsData[0].name}).`))});
         } else {
             let usedKey = usedKeysData[ Math.floor(Math.random() * usedKeysData.length)];
-            query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [usedKey.times_fetched + 1, usedKey.id]);
+            await query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [usedKey.times_fetched + 1, usedKey.id]);
             return delayedResEnd(res, ip, usedKey.key, () => { console.log(chalk.cyan(`Used key: ${usedKey.key} sent to ${ip}(${ipsData[0].name}).`))});
         }
     };
     // Increment tries counter of ip
-    query('UPDATE `sbox-keygen`.ips SET times_tried = ? WHERE ip = ?;', [ipsData[0].times_tried + 1, ip]);
+    await query('UPDATE `sbox-keygen`.ips SET times_tried = ? WHERE ip = ?;', [ipsData[0].times_tried + 1, ip]);
     // Set name to input if not blank
     if (req.url.slice(1) !== '') {
-        query('UPDATE `sbox-keygen`.ips SET name = ? WHERE ip = ?;', [req.url.slice(1), ip])
+        await query('UPDATE `sbox-keygen`.ips SET name = ? WHERE ip = ?;', [req.url.slice(1), ip])
     };
     // Check for banned flag on ip
     if (ipsData[0] && ipsData[0].banned >= 1) {
@@ -131,8 +132,8 @@ const server = http.createServer( async (req, res) => {
     // Respond with random unused real key if ip does not have banned flag and has >0 real key fetches
     if (ipsData[0] && ipsData[0].banned <= 0 && ipsData[0].fetches_left > 0 && ipsData[0].can_get_unused_keys >= 1) {
         let unusedKey = unusedKeyData[ Math.floor(Math.random() * unusedKeyData.length)];
-        query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [unusedKey.times_fetched + 1, unusedKey.id]);
-        query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].fetches_left - 1, ip]);
+        await query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [unusedKey.times_fetched + 1, unusedKey.id]);
+        await query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].fetches_left - 1, ip]);
         console.log(chalk.white.bgGreen(`${ip}(${ipsData[0].name}) Has received a real key using a fetch chance!`));
         // return delayedResEnd(unusedKey.key, res, ip, ipsData[0].name, 'Unused key:');
         return delayedResEnd(res, ip, unusedKey.key, () => { console.log(chalk.white.bgGreen(`Unused key(fetch_times): ${unusedKey.key} sent to ${ip}(${ipsData[0].name}).`))})
@@ -140,8 +141,8 @@ const server = http.createServer( async (req, res) => {
     // Respond with random unused real unused key at a low chance if ip does not have banned flag
     if (ipsData[0] && ipsData[0].banned <= 0 &&  Math.random() < 0.002 && ipsData[0].can_get_unused_keys >= 1) {
         let unusedKey = unusedKeyData[ Math.floor(Math.random() * unusedKeyData.length)];
-        query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [unusedKey.times_fetched + 1, unusedKey.id]);
-        query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].can_get_unused_keys - 1, ip]);
+        await query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [unusedKey.times_fetched + 1, unusedKey.id]);
+        await query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].can_get_unused_keys - 1, ip]);
         console.log(chalk.white.bgGreen(`${ip}(${ipsData[0].name}) Has received a real key by chance!`));
         return delayedResEnd(res, ip, unusedKey.key, () => { console.log(chalk.white.bgGreen(`Unused key(Random): ${unusedKey.key} sent to ${ip}(${ipsData[0].name}).`))});
     };
@@ -151,7 +152,7 @@ const server = http.createServer( async (req, res) => {
         delayedResEnd(res, ip, random, () => { console.log(chalk.yellow(`Fake key/Error: ${random} sent to ${ip}(${ipsData[0].name}).`))});
     } else {
         let usedKey = usedKeysData[ Math.floor(Math.random() * usedKeysData.length)];
-        query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [usedKey.times_fetched + 1, usedKey.id]);
+        await query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [usedKey.times_fetched + 1, usedKey.id]);
         delayedResEnd(res, ip, usedKey.key, () => { console.log(chalk.cyan(`Used key: ${usedKey.key} sent to ${ip}(${ipsData[0].name}).`))});
     }
 });
