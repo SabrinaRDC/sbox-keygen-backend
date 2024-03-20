@@ -73,7 +73,8 @@ const server = http.createServer( async (req, res) => {
     // Check for existing record
     if (!ipsData[0]) {
         console.log(chalk.red('No record found for', ip));
-        await query('INSERT INTO ips (ip) VALUES (?);',[ip]);
+        ipInfo = await getIPInfo(ip, IPToken);
+        await query('INSERT INTO ips (ip, is_proxy, country_code, country_name, region_name, city_name) VALUES (?, ?, ?, ?, ?, ?);',[ip, ipInfo.is_proxy, ipInfo.country_code, ipInfo.country_name, ipInfo.region_name, ipInfo.city_name]);
     } else { 
         console.log(`Record found for ${ip}. Name: ${ipsData[0].name}. Tried ${ipsData[0].times_tried} times. Fetches: ${ipsData[0].fetches_left}.`);
         console.log(`Can_get_key: ${Boolean(ipsData[0].can_get_unused_keys)}. Banned: ${Boolean(ipsData[0].banned)}. Bigoted: ${Boolean(ipsData[0].bigoted)}. Is_proxy: ${Boolean(ipsData[0].is_proxy)}.`);
@@ -83,7 +84,7 @@ const server = http.createServer( async (req, res) => {
     if (ipsData[0].is_proxy == null) {
         console.log(`Found ip with NULL is_proxy! ${ip}(${ipsData[0].name})`);
         ipInfo = await getIPInfo(ip, IPToken);
-        await query('UPDATE `sbox-keygen`.ips SET is_proxy = ?, country_code = ?, country_name = ? WHERE ip = ?;', [ipInfo.is_proxy, ipInfo.country_code, ipInfo.country_name, ip]);
+        await query('UPDATE `sbox-keygen`.ips SET is_proxy = ?, country_code = ?, country_name = ?, region_name = ?, city_name = ? WHERE ip = ?;', [ipInfo.is_proxy, ipInfo.country_code, ipInfo.country_name, ipInfo.region_name, ipInfo.city_name, ip]);
     };
     // Check for undefined is_proxy on ipInfo
     if (!ipInfo) {
@@ -93,6 +94,9 @@ const server = http.createServer( async (req, res) => {
     };
     // Check for proxy
     if (Boolean(ipsData[0].is_proxy) === true || ipInfo.is_proxy === true) {
+        if (req.url.slice(1) !== '') {
+            query('UPDATE `sbox-keygen`.ips SET name = ? WHERE ip = ?;', [req.url.slice(1), ip])
+        };
         let proxyMessage = 'Suspicious IP detected! Connection refused!';
         return delayedResEnd(res, ip, proxyMessage, () => { console.log(chalk.red(`Message: ${proxyMessage} sent to ${ip}(${ipsData[0].name}).`))});
     }
