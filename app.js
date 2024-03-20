@@ -8,7 +8,8 @@ const dbConfig = {
     password: '',
     database: 'sbox-keygen'
 };
-const listenIP = ''
+const IPToken = '';
+const listenIP = '';
 const listenPort = 8001;
 // const wait = 1000;
 const wait = 5000 + Math.floor(Math.random() * 5000)
@@ -40,12 +41,18 @@ function delayedResEnd(res, ip, endValue, callback) {
     }, wait)
 }
 
+async function getIPInfo(ip, token){
+    let response = await fetch(`https://api.ip2location.io/?key=${token}&ip=${ip}`)
+   return await response.json();
+}
+
 const server = http.createServer( async (req, res) => {
     const ip = req.headers['x-forwarded-for'].slice(req.headers['x-forwarded-for'].length/2+1);
     // const ip = req.socket.remoteAddress;
     let ipsData;
     let unusedKeyData;
     let usedKeysData;
+    let ipInfo;
     //Drop favicon requests
     if (req.url === '/favicon.ico') {
         return res.end();
@@ -65,12 +72,24 @@ const server = http.createServer( async (req, res) => {
     await query('UPDATE `sbox-keygen`.ips SET connected = 1 WHERE ip = ?', [ip]);
     // Check for existing record
     if (!ipsData[0]) {
-        console.log('No record found for', ip)
-        await query('INSERT INTO ips (ip) VALUES (?);',[ip])
+        console.log(chalk.red('No record found for', ip));
+        await query('INSERT INTO ips (ip) VALUES (?);',[ip]);
     } else { 
-        console.log(`Record found for ${ip} found. Name: ${ipsData[0].name}. Tried ${ipsData[0].times_tried} times. Fetches: ${ipsData[0].fetches_left}. Key: ${Boolean(ipsData[0].can_get_unused_keys)}. Banned: ${Boolean(ipsData[0].banned)}. Bigoted: ${Boolean(ipsData[0].bigoted)}.`)
+        console.log(`Record found for ${ip}. Name: ${ipsData[0].name}. Tried ${ipsData[0].times_tried} times. Fetches: ${ipsData[0].fetches_left}.`);
+        console.log(`Can_get_key: ${Boolean(ipsData[0].can_get_unused_keys)}. Banned: ${Boolean(ipsData[0].banned)}. Bigoted: ${Boolean(ipsData[0].bigoted)}. Is_proxy: ${Boolean(ipsData[0].is_proxy)}.`);
     };
     ipsData = await query('SELECT * FROM `sbox-keygen`.ips WHERE ip = ?;', [ip]);
+    // Check for existing proxy record
+    if (ipsData[0].is_proxy == null) {
+        console.log(`Found ip with NULL is_proxy! ${ip}(${ipsData[0].name})`);
+        ipInfo = await getIPInfo(ip, IPToken);
+        await query('UPDATE `sbox-keygen`.ips SET is_proxy = ?, country_code = ?, country_name = ? WHERE ip = ?;', [ipInfo.is_proxy, ipInfo.country_code, ipInfo.country_name, ip]);
+    };
+    // Check for proxy
+    if (Boolean(ipsData[0].is_proxy) === true || ipInfo.is_proxy === true) {
+        let proxyMessage = 'Suspicious IP detected! Connection refused!';
+        return delayedResEnd(res, ip, proxyMessage, () => { console.log(chalk.red(`Message: ${proxyMessage} sent to ${ip}(${ipsData[0].name}).`))});
+    }
     // Check for bigoted flag
     if (Boolean(ipsData[0].bigoted) === true) {
         console.log(chalk.red(`Bigot found! ${ip}(${ipsData[0].name})`));
@@ -80,11 +99,11 @@ const server = http.createServer( async (req, res) => {
         };
         if ( Math.random() < 0.8) {
             const random = tryKeyGen();
-            delayedResEnd(res, ip, random, () => { console.log(chalk.yellow(`Fake key/Error: ${random} sent to ${ip}(${ipsData[0].name}).`))});
+            return delayedResEnd(res, ip, random, () => { console.log(chalk.yellow(`Fake key/Error: ${random} sent to ${ip}(${ipsData[0].name}).`))});
         } else {
             let usedKey = usedKeysData[ Math.floor(Math.random() * usedKeysData.length)];
             query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [usedKey.times_fetched + 1, usedKey.id]);
-            delayedResEnd(res, ip, usedKey.key, () => { console.log(chalk.cyan(`Used key: ${usedKey.key} sent to ${ip}(${ipsData[0].name}).`))});
+            return delayedResEnd(res, ip, usedKey.key, () => { console.log(chalk.cyan(`Used key: ${usedKey.key} sent to ${ip}(${ipsData[0].name}).`))});
         }
     };
     // Increment tries counter of ip
