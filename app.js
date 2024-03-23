@@ -66,8 +66,6 @@ const server = http.createServer( async (req, res) => {
     ipsData = await query(ipsDataQuery, [ip])
     unusedKeyData = await query('SELECT id, `key`, times_fetched FROM `sbox-keygen`.keys WHERE status = ?', ['unused']);
     usedKeysData = await query('SELECT id, `key`, times_fetched FROM `sbox-keygen`.keys WHERE status = ?', ['used']);
-    // Check for valid name
-
     // Check for existing connection
     if (ipsData[0] && ipsData[0].connected === 1) {
         console.log(chalk.red(`Duplicated connection from ${ip} dropped.`));
