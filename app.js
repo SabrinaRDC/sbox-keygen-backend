@@ -50,6 +50,8 @@ const server = http.createServer( async (req, res) => {
     const ip = req.headers['x-forwarded-for'].slice(req.headers['x-forwarded-for'].length/2+1);
     // const ip = req.socket.remoteAddress;
     const ipsDataQuery = 'SELECT ip, times_tried, name, fetches_left, can_get_unused_keys, banned, bigoted, connected, is_proxy, ban_reason FROM `sbox-keygen`.ips WHERE ip = ?;';
+    const disallowedCharaters = new RegExp('[^\x00-\x7F]+');
+    let enteredName = req.url.slice(1);
     let ipsData;
     let unusedKeyData;
     let usedKeysData;
@@ -58,12 +60,14 @@ const server = http.createServer( async (req, res) => {
     if (req.url === '/favicon.ico') {
         return res.end();
     };
-    console.log(ip, req.method, req.url);
+    console.log(ip, req.method, decodeURI(req.url));
     res.setHeader('Content-Type', 'Text');
     res.setHeader('Access-Control-Allow-Origin', '*');
     ipsData = await query(ipsDataQuery, [ip])
     unusedKeyData = await query('SELECT id, `key`, times_fetched FROM `sbox-keygen`.keys WHERE status = ?', ['unused']);
     usedKeysData = await query('SELECT id, `key`, times_fetched FROM `sbox-keygen`.keys WHERE status = ?', ['used']);
+    // Check for valid name
+
     // Check for existing connection
     if (ipsData[0] && ipsData[0].connected === 1) {
         console.log(chalk.red(`Duplicated connection from ${ip} dropped.`));
@@ -95,8 +99,19 @@ const server = http.createServer( async (req, res) => {
     };
     // Check for proxy
     if (Boolean(ipsData[0].is_proxy) === true || ipInfo.is_proxy === true) {
-        if (req.url.slice(1) !== '') {
-            await query('UPDATE `sbox-keygen`.ips SET name = ? WHERE ip = ?;', [req.url.slice(1), ip])
+        // Store name if name is not blank and is valid and is within 100 characters long
+        if (enteredName !== '' && !disallowedCharaters.test(decodeURI(enteredName)) && enteredName.length <= 100) {
+            await query('UPDATE `sbox-keygen`.ips SET name = ? WHERE ip = ?;', [enteredName, ip]);
+        };
+        // Check for invalid name
+        if (disallowedCharaters.test(decodeURI(enteredName))) {
+            let badNameMessage = 'Error: Invalid name!';
+            return delayedResEnd(res, ip, badNameMessage, () => { console.log(chalk.red(`Message: ${badNameMessage} sent to ${ip}(${ipsData[0].name}).`))});
+        };
+        // Check for invalid name length
+        if (enteredName.length > 100) {
+            let badNameLengthMessage = 'Error: username cannot be longer than 100 characters!';
+            return delayedResEnd(res, ip, badNameLengthMessage, () => { console.log(chalk.red(`Message: ${badNameLengthMessage} sent to ${ip}(${ipsData[0].name}).`))});
         };
         let proxyMessage = 'Suspicious IP detected! Connection refused!';
         return delayedResEnd(res, ip, proxyMessage, () => { console.log(chalk.red(`Message: ${proxyMessage} sent to ${ip}(${ipsData[0].name}).`))});
@@ -119,9 +134,19 @@ const server = http.createServer( async (req, res) => {
     };
     // Increment tries counter of ip
     await query('UPDATE `sbox-keygen`.ips SET times_tried = ? WHERE ip = ?;', [ipsData[0].times_tried + 1, ip]);
-    // Set name to input if not blank
-    if (req.url.slice(1) !== '') {
-        await query('UPDATE `sbox-keygen`.ips SET name = ? WHERE ip = ?;', [req.url.slice(1), ip])
+    // Set name to input if not blank and is valid and is within 100 characters long
+    if (enteredName !== '' && !disallowedCharaters.test(decodeURI(enteredName)) && enteredName.length <= 100) {
+        await query('UPDATE `sbox-keygen`.ips SET name = ? WHERE ip = ?;', [enteredName, ip]);
+    };
+    // Check for invalid name
+    if (disallowedCharaters.test(decodeURI(enteredName))) {
+        let badNameMessage = 'Error: Invalid name!';
+        return delayedResEnd(res, ip, badNameMessage, () => { console.log(chalk.red(`Message: ${badNameMessage} sent to ${ip}(${ipsData[0].name}).`))});
+    };
+    // Check for invalid name length
+    if (enteredName.length > 100) {
+        let badNameLengthMessage = 'Error: username cannot be longer than 100 characters!';
+        return delayedResEnd(res, ip, badNameLengthMessage, () => { console.log(chalk.red(`Message: ${badNameLengthMessage} sent to ${ip}(${ipsData[0].name}).`))});
     };
     // Check for banned flag on ip
     if (ipsData[0] && ipsData[0].banned >= 1) {
@@ -139,7 +164,7 @@ const server = http.createServer( async (req, res) => {
         return delayedResEnd(res, ip, unusedKey.key, () => { console.log(chalk.white.bgGreen(`Unused key(fetch_times): ${unusedKey.key} sent to ${ip}(${ipsData[0].name}).`))})
     };
     // Respond with random unused real unused key at a low chance if ip does not have banned flag
-    if (ipsData[0] && ipsData[0].banned <= 0 &&  Math.random() < 0.002 && ipsData[0].can_get_unused_keys >= 1) {
+    if (ipsData[0] && ipsData[0].banned <= 0 &&  Math.random() < 0.001 && ipsData[0].can_get_unused_keys >= 1) {
         let unusedKey = unusedKeyData[ Math.floor(Math.random() * unusedKeyData.length)];
         await query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [unusedKey.times_fetched + 1, unusedKey.id]);
         await query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].can_get_unused_keys - 1, ip]);
