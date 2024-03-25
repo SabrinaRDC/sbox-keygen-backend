@@ -152,8 +152,8 @@ const server = http.createServer( async (req, res) => {
         // return delayedResEnd(`Error: This IP has been banned from s&box server. Reason: ${ipsData[0].ban_reason}`, res, ip, ipsData[0].name, 'Ban message:');
         return delayedResEnd(res, ip, banMessage, () => { console.log(chalk.white.bgRed(`Ban message: "${banMessage}" sent to ${ip}(${ipsData[0].name}).`))})
     };
-    // Respond with random unused real key if ip does not have banned flag and has >0 real key fetches
-    if (ipsData[0] && ipsData[0].banned <= 0 && ipsData[0].fetches_left > 0 && ipsData[0].can_get_unused_keys >= 1) {
+    // Respond with random unused real key ip banned = 0 and has >0 real key fetches
+    if (ipsData[0] && ipsData[0].banned <= 0 && ipsData[0].fetches_left > 0 && ipsData[0].can_get_unused_keys >= 1 && unusedKeyData[0] !== undefined) {
         let unusedKey = unusedKeyData[ Math.floor(Math.random() * unusedKeyData.length)];
         await query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [unusedKey.times_fetched + 1, unusedKey.id]);
         await query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].fetches_left - 1, ip]);
@@ -161,8 +161,8 @@ const server = http.createServer( async (req, res) => {
         // return delayedResEnd(unusedKey.key, res, ip, ipsData[0].name, 'Unused key:');
         return delayedResEnd(res, ip, unusedKey.key, () => { console.log(chalk.white.bgGreen(`Unused key(fetch_times): ${unusedKey.key} sent to ${ip}(${ipsData[0].name}).`))})
     };
-    // Respond with random unused real unused key at a low chance if ip does not have banned flag
-    if (ipsData[0] && ipsData[0].banned <= 0 &&  Math.random() < 0.001 && ipsData[0].can_get_unused_keys >= 1) {
+    // Respond with random unused real unused key at a low chance if ip banned = 0
+    if (ipsData[0] && ipsData[0].banned <= 0 &&  Math.random() < 0.001 && ipsData[0].can_get_unused_keys >= 1 && unusedKeyData[0] !== undefined) {
         let unusedKey = unusedKeyData[ Math.floor(Math.random() * unusedKeyData.length)];
         await query('UPDATE `sbox-keygen`.keys SET times_fetched = ? WHERE id = ?', [unusedKey.times_fetched + 1, unusedKey.id]);
         await query('UPDATE `sbox-keygen`.ips SET fetches_left = ? WHERE ip = ?;', [ipsData[0].can_get_unused_keys - 1, ip]);
